@@ -1,0 +1,75 @@
+#include <Wire.h>
+#include <Adafruit_BMP180.h>
+#include <Adafruit_MPU6050.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+Adafruit_BMP180 bmp;
+Adafruit_MPU6050 mpu;
+const int vibrationSensorPin = 2;  // Change this to the pin number you're using for the vibration sensor
+const int currentSensorPin = 34;   // Change this to the pin number you're using for the current sensor
+const int voltageDividerPin = 35;  // Change this to the pin number you're using for the voltage divider
+const char* ssid = "your_SSID";
+const char* password = "your_PASSWORD";
+const char* serverName = "your_Frebese_server_name.com";
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+  mpu.begin();
+  pinMode(vibrationSensorPin, INPUT);
+  pinMode(currentSensorPin, INPUT);
+  pinMode(voltageDividerPin, INPUT);
+  if (!bmp.begin()) {
+    Serial.println("Could not find a valid BMP180 sensor, check wiring!");
+    while (1) {}
+  }
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+}
+
+void loop() {
+  float temperature = bmp.readTemperature();
+  float pressure = bmp.readPressure() / 100.0F;
+  float altitude = bmp.readAltitude();
+  Serial.print("Temperature = ");
+  Serial.print(temperature);
+  Serial.println(" *C");
+  Serial.print("Pressure = ");
+  Serial.print(pressure);
+  Serial.println(" hPa");
+  Serial.print("Altitude = ");
+  Serial.print(altitude);
+  Serial.println(" meters");
+
+  float ax, ay, az;
+  float gx, gy, gz;
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  Serial.print("Accelerometer: ");
+  Serial.print(ax); Serial.print(", ");
+  Serial.print(ay); Serial.print(", ");
+  Serial.println(az);
+  Serial.print("Gyroscope: ");
+  Serial.print(gx); Serial.print(", ");
+  Serial.print(gy); Serial.print(", ");
+  Serial.println(gz);
+
+  int vibrationSensorValue = digitalRead(vibrationSensorPin);
+  Serial.print("Vibration sensor value: ");
+  Serial.println(vibrationSensorValue);
+
+  float currentSensorValue = analogRead(currentSensorPin);
+  Serial.print("Current sensor value: ");
+  Serial.println(currentSensorValue);
+
+  float voltageDividerValue = analogRead(voltageDividerPin);
+  float batteryVoltage = (voltageDividerValue / 4095.0) * 3.3 * 4.7;  // 4.7k-ohm resistor in the voltage divider
+  Serial.print("Battery voltage: ");
+  Serial.println(batteryVoltage);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String data = "temperature=" + String(temperature) + "&pressure=" + String(pressure) + "&altitude=" + String(altitude) + "&ax=" + String(ax) + "&ay=" + String(ay) + "&az=" + String(az) + "&gx=" + String(gx) + "&gy=" + String(gy) + "&gz=" + String(gz) + "&v
